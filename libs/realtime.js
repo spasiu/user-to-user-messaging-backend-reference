@@ -1,26 +1,29 @@
-const orderLib = require('./orders');
+const orders = require('./orders');
 
 // Naive single server websocket implementation. Clients are ID'd by user ID.
 const clients = {};
 
-module.exports.initConnectionHandler = db => async function(request) {
+module.exports.initConnectionHandler = async function(request) {
     try {
+        const userId = request.resourceURL.query.appUserId;
+        const appId = request.resourceURL.query.appId;
+
+        // add connection to pool
         const connection = request.accept(request.origin);
-        const userId = request.resourceURL.query.userId;
         clients[userId] = connection;
 
-        const orders = await orderLib.configure(db).listOrders(userId);
-        connection.sendUTF(JSON.stringify({ orders }));
+        // send conversartions to client
+        const conversations = await orders.listConversations({ appId, userId });
+        connection.sendUTF(JSON.stringify({ conversations }));
 
-        connection.on('close', function(reasonCode, description) {
-            clients[userId] = undefined;
-        });
+        // remove client from pool after closing
+        connection.on('close', () => clients[userId] = undefined);
     } catch (error) {
         console.error('ERROR initConnectionHandler', error);
     }
 };
 
-module.exports.sendNewOrderToDevice = async function(order) {
-    const client = clients[order.owner.userId];
-    if (client) return client.sendUTF(JSON.stringify({ orders: [order] }));
+module.exports.sendNewOrderToDevice = async function(userId, convo) {
+    const client = clients[userId];
+    if (client) return client.sendUTF(JSON.stringify({ conversations: [convo] }));
 };
