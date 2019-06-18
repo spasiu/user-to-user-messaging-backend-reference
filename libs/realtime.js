@@ -1,12 +1,17 @@
 const orders = require('./orders');
+const Redis = require('ioredis');
 
 // Naive single server websocket implementation. Clients are ID'd by user ID.
 const clients = {};
 
+const redis = new Redis(process.env.REDIS_URL);
+
 module.exports.initConnectionHandler = async function(request) {
     try {
-        const userId = request.resourceURL.query.appUserId;
+        const userId = request.resourceURL.query.userId;
         const appId = request.resourceURL.query.appId;
+        
+        await redis.set(`courier:${userId}`, JSON.stringify({ userId, appId }));
 
         // add connection to pool
         const connection = request.accept(request.origin);
@@ -17,7 +22,10 @@ module.exports.initConnectionHandler = async function(request) {
         connection.sendUTF(JSON.stringify({ conversations }));
 
         // remove client from pool after closing
-        connection.on('close', () => clients[userId] = undefined);
+        connection.on('close', () => {
+            redis.del(`courier:${userId}`);
+            clients[userId] = undefined;
+        });
     } catch (error) {
         console.error('ERROR initConnectionHandler', error);
     }

@@ -1,25 +1,22 @@
 const orders = require('./orders');
-
-// hardcode list of couriers
-const availableCouriers = [{
-    appId: '5ceff31f95046400102e935d',
-    userId: 'ca6d3ab561cb9d821a7a582f'
-}, {
-    appId: '5ceff31f95046400102e935d',
-    userId: '681bd813a45cb9a6cdc4ec95'
-}];
+const Redis = require('ioredis');
+const redis = new Redis(process.env.REDIS_URL);
 
 module.exports.createNewOrderHandler = async function(req, res) {
     try {
         const customer = req.body.customer;
 
-        // randomly assign courier to order
-        const randomIndex = Math.floor(Math.random() * availableCouriers.length);
-        const courier = availableCouriers[randomIndex];
+        // randomly assign another user to order
+        const redisResponse = await redis.scan(0, 'match', 'courier:*');
+        const courierKeys = redisResponse[1].filter(key => key !== `courier:${customer.userId}`);
+        const randomIndex = Math.floor(Math.random() * courierKeys.length);
+        const key = courierKeys[randomIndex];
+        const result = await redis.get(key);
+        const courier = JSON.parse(result);
 
         // respond with new conversation
         const convo = await orders.createOrder(customer, courier);
-        res.status(200).json({ conversations: [convo] });
+        res.status(200).json({ conversation: convo });
     } catch (error) {
         console.error('ERROR createNewOrderHandler', error);
         res.status(500).json({ error: error.message });

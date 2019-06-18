@@ -2,7 +2,7 @@ const axios = require('axios');
 const realtime = require('./realtime');
 
 // Smooch auth token
-const TOKEN = process.env.TOKEN || '';
+const TOKEN = process.env.TOKEN;
 
 module.exports.listConversations = listConversations;
 module.exports.createOrder = createOrder;
@@ -65,7 +65,7 @@ async function createConversation({ appId, userId }, metadata) {
         method: 'post',
         data
     });
-    console.log('CREATE', JSON.stringify(response.data.conversation, null, 4));
+
     return response.data.conversation;
 }
 
@@ -82,6 +82,6 @@ async function updateConversation(appId, convoId, metadata={}) {
         method: 'put',
         data: { metadata }
     });
-    console.log('UPDATE', JSON.stringify(response.data.conversation, null, 4));
+
     return response.data.conversation;
 }
